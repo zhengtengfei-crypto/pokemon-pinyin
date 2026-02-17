@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图标生成器 - 宝可梦拼音大搜查</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .container {
+            background: white;
+            color: #333;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #FF6B6B;
+        }
+
+        canvas {
+            display: block;
+            margin: 20px auto;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.02);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-192 {
+            background: #4ECDC4;
+            color: white;
+        }
+
+        .btn-512 {
+            background: #FF6B6B;
+            color: white;
+        }
+
+        .instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+
+        .instructions h3 {
+            color: #FF6B6B;
+            margin-top: 0;
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+        }
+
+        .preview {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .preview p {
+            color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 应用图标生成器</h1>
+
+        <div class="instructions">
+            <h3>📝 使用说明</h3>
+            <ol>
+                <li>点击下方按钮生成对应尺寸的图标</li>
+                <li>右键点击生成的图标，选择"将图像另存为..."</li>
+                <li>保存为对应的文件名（icon-192.png 或 icon-512.png）</li>
+                <li>将生成的图标文件放在项目根目录</li>
+                <li>刷新主应用即可看到新图标</li>
+            </ol>
+        </div>
+
+        <div class="preview">
+            <p><strong>预览（192x192）</strong></p>
+            <canvas id="canvas192" width="192" height="192"></canvas>
+            <button class="btn-192" onclick="downloadIcon(192)">⬇️ 下载 icon-192.png</button>
+        </div>
+
+        <div class="preview">
+            <p><strong>预览（512x512）</strong></p>
+            <canvas id="canvas512" width="512" height="512"></canvas>
+            <button class="btn-512" onclick="downloadIcon(512)">⬇️ 下载 icon-512.png</button>
+        </div>
+    </div>
+
+    <script>
+        // 绘制图标
+        function drawIcon(canvas) {
+            const ctx = canvas.getContext('2d');
+            const size = canvas.width;
+            const center = size / 2;
+
+            // 清空画布
+            ctx.clearRect(0, 0, size, size);
+
+            // 绘制背景圆
+            ctx.fillStyle = '#FF6B6B';
+            ctx.beginPath();
+            ctx.arc(center, center, size / 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 绘制精灵球
+            const ballRadius = size * 0.35;
+
+            // 白色部分（下半球）
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(center, center, ballRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 红色部分（上半球）
+            ctx.fillStyle = '#E74C3C';
+            ctx.beginPath();
+            ctx.arc(center, center, ballRadius, Math.PI, Math.PI * 2);
+            ctx.fill();
+
+            // 中间黑色带
+            ctx.fillStyle = '#2C3E50';
+            ctx.fillRect(center - ballRadius, center - size * 0.032, ballRadius * 2, size * 0.064);
+
+            // 中心白色圆
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(center, center, size * 0.098, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 中心圆边框
+            ctx.strokeStyle = '#2C3E50';
+            ctx.lineWidth = size * 0.016;
+            ctx.stroke();
+
+            // 内圆
+            ctx.fillStyle = '#ECF0F1';
+            ctx.beginPath();
+            ctx.arc(center, center, size * 0.059, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 绘制文字 "Pīn"
+            ctx.fillStyle = '#2C3E50';
+            ctx.font = `bold ${size * 0.094}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Pīn', center, center - size * 0.23);
+
+            // 绘制文字 "Yīn"
+            ctx.fillText('Yīn', center, center + size * 0.23);
+
+            // 添加小星星装饰
+            drawStar(ctx, center - size * 0.35, center - size * 0.35, size * 0.039, '#FFE66D');
+            drawStar(ctx, center + size * 0.35, center - size * 0.35, size * 0.039, '#FFE66D');
+            drawStar(ctx, center - size * 0.35, center + size * 0.35, size * 0.029, '#FFE66D');
+            drawStar(ctx, center + size * 0.35, center + size * 0.35, size * 0.029, '#FFE66D');
+        }
+
+        // 绘制星星
+        function drawStar(ctx, x, y, radius, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+                const r = i % 2 === 0 ? radius : radius / 2;
+                const px = x + r * Math.cos(angle);
+                const py = y + r * Math.sin(angle);
+                if (i === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // 下载图标
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const link = document.createElement('a');
+            link.download = `icon-${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // 页面加载时生成图标
+        window.onload = function() {
+            drawIcon(document.getElementById('canvas192'));
+            drawIcon(document.getElementById('canvas512'));
+        };
+    </script>
+</body>
+</html>

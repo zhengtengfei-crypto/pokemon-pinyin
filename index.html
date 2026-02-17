@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#FF6B6B">
+    <title>宝可梦拼音大搜查 | Pokémon Pinyin Quest</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #FFB6C1 0%, #87CEEB 50%, #98FB98 100%);
+            height: 100vh;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        #app {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部导航栏 */
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .navbar h1 {
+            font-size: 36px;
+            color: #FF6B9D;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-shadow: 2px 2px 4px rgba(255, 107, 157, 0.3);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-btn {
+            padding: 18px 35px;
+            border: none;
+            border-radius: 30px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            touch-action: manipulation;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .nav-btn.primary {
+            background: linear-gradient(135deg, #FF6B9D 0%, #FF8FB2 100%);
+            color: white;
+        }
+
+        .nav-btn.secondary {
+            background: linear-gradient(135deg, #4ECDC4 0%, #72DFD8 100%);
+            color: white;
+        }
+
+        .nav-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        /* 游戏主界面 */
+        .game-container {
+            flex: 1;
+            display: none; /* 默认隐藏 */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .game-container.active {
+            display: flex; /* 激活时显示 */
+        }
+
+        /* 草丛 */
+        .grass-patch {
+            width: 350px;
+            height: 350px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle fill="%2345B649" cx="50" cy="50" r="40"/><path fill="%2338A33C" d="M30,50 Q35,30 40,50 Q45,30 50,50 Q55,30 60,50 Q65,30 70,50"/></svg>') center/contain no-repeat;
+            cursor: pointer;
+            animation: shake 2s ease-in-out infinite;
+            transition: transform 0.2s;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+        }
+
+        .grass-patch:active {
+            transform: scale(0.95);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            25% { transform: translateX(-5px) rotate(-2deg); }
+            75% { transform: translateX(5px) rotate(2deg); }
+        }
+
+        .hint-text {
+            margin-top: 25px;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
+            animation: pulse 2s ease-in-out infinite;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px 30px;
+            border-radius: 20px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* 宝可梦遭遇界面 */
+        .encounter-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .encounter-screen.active {
+            display: flex;
+        }
+
+        .pokemon-display {
+            width: 320px;
+            height: 320px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+            position: relative;
+            overflow: hidden;
+            border: 6px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .pokemon-display img {
+            width: 260px;
+            height: 260px;
+            object-fit: contain;
+            transition: filter 0.5s;
+        }
+
+        .pokemon-display.shadow img {
+            filter: brightness(0);
+        }
+
+        .pokemon-name {
+            font-size: 48px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 4px 4px 8px rgba(0,0,0,0.6);
+            background: rgba(0, 0, 0, 0.35);
+            padding: 18px 40px;
+            border-radius: 25px;
+        }
+
+        .pokemon-name .highlight {
+            color: #FF6B9D;
+            background: white;
+            padding: 5px 15px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(255, 107, 157, 0.6);
+            animation: highlight-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes highlight-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* 题目区域 */
+        .question-area {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 35px;
+            border-radius: 30px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+            text-align: center;
+            min-width: 500px;
+            border: 5px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .question-text {
+            font-size: 38px;
+            color: #333;
+            margin-bottom: 25px;
+            font-weight: bold;
+        }
+
+        .pinyin-blank {
+            font-size: 52px;
+            color: #FF6B9D;
+            font-weight: bold;
+            letter-spacing: 6px;
+            text-shadow: 2px 2px 4px rgba(255, 107, 157, 0.3);
+        }
+
+        /* 重读按钮 */
+        .repeat-btn {
+            margin-top: 20px;
+            padding: 15px 35px;
+            font-size: 28px;
+            background: linear-gradient(135deg, #4ECDC4 0%, #72DFD8 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(78, 205, 196, 0.4);
+            transition: all 0.3s;
+        }
+
+        .repeat-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 选项按钮（精灵球） */
+        .options-container {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .pokeball-option {
+            width: 160px;
+            height: 160px;
+            background: radial-gradient(circle at 50% 45%, #FF3B3B 50%, #1A1A1A 50%, #1A1A1A 52%, #fff 52%);
+            border-radius: 50%;
+            border: 7px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+
+        .pokeball-option:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+        }
+
+        .pokeball-option::after {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: 7px solid #333;
+            border-radius: 50%;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.3);
+        }
+
+        .pokeball-option span {
+            position: relative;
+            z-index: 1;
+            font-size: 48px;
+            font-weight: bold;
+            color: #333;
+            background: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #333;
+        }
+
+        .pokeball-option:active {
+            transform: scale(0.95) rotate(10deg);
+        }
+
+        .pokeball-option.shake {
+            animation: pokeball-shake 0.5s ease-in-out 3;
+        }
+
+        @keyframes pokeball-shake {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-15deg); }
+            75% { transform: rotate(15deg); }
+        }
+
+        /* 图鉴界面 */
+        .pokedex-screen {
+            display: none;
+            padding: 20px;
+            padding-bottom: 60px; /* 底部留白，方便滚动 */
+            overflow-y: auto;
+            overflow-x: hidden;
+            width: 100%;
+            height: 100%;
+            -webkit-overflow-scrolling: touch; /* iOS 平滑滚动 */
+        }
+
+        .pokedex-screen.active {
+            display: block;
+        }
+
+        /* 图鉴筛选器 */
+        .pokedex-filter {
+            text-align: center;
+            margin: 25px auto;
+            max-width: 700px;
+        }
+
+        .filter-toggle {
+            display: inline-flex;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 35px;
+            padding: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            gap: 12px;
+        }
+
+        .filter-btn {
+            padding: 20px 50px;
+            border: none;
+            border-radius: 30px;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: transparent;
+            color: #999;
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(135deg, #FF6B9D 0%, #FF8FB2 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(255, 107, 157, 0.4);
+        }
+
+        .filter-btn:active {
+            transform: scale(0.95);
+        }
+
+        .pokedex-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 25px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding-bottom: 30px;
+        }
+
+        .pokedex-card {
+            background: white;
+            border-radius: 25px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            border: 4px solid rgba(255, 255, 255, 0.6);
+            position: relative;
+        }
+
+        .pokedex-sound-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4ECDC4 0%, #72DFD8 100%);
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(78, 205, 196, 0.4);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pokedex-sound-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .pokedex-sound-btn:active {
+            transform: scale(0.95);
+        }
+
+        .pokedex-card img {
+            width: 140px;
+            height: 140px;
+            object-fit: contain;
+        }
+
+        .pokedex-card.locked img {
+            filter: brightness(0);
+            opacity: 0.3;
+        }
+
+        .pokedex-card .pokemon-info {
+            margin-top: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .pokedex-card .pokemon-info small {
+            font-size: 22px;
+        }
+
+        .pokedex-card.locked .pokemon-info {
+            color: #999;
+        }
+
+        /* 反馈弹窗 */
+        .feedback-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .feedback-modal.active {
+            display: flex;
+        }
+
+        .feedback-content {
+            background: white;
+            padding: 50px;
+            border-radius: 35px;
+            text-align: center;
+            max-width: 600px;
+            box-shadow: 0 15px 60px rgba(0,0,0,0.6);
+            border: 6px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .feedback-content h2 {
+            font-size: 48px;
+            margin-bottom: 25px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .feedback-content.success h2 {
+            color: #4ECDC4;
+        }
+
+        .feedback-content.error h2 {
+            color: #FF6B9D;
+        }
+
+        .feedback-content p {
+            font-size: 28px;
+            line-height: 1.8;
+            margin: 20px 0;
+            color: #555;
+        }
+
+        .feedback-content button {
+            margin-top: 30px;
+            padding: 20px 50px;
+            font-size: 28px;
+            border: none;
+            border-radius: 30px;
+            background: linear-gradient(135deg, #FFB6C1 0%, #87CEEB 100%);
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .feedback-content button:active {
+            transform: scale(0.95);
+        }
+
+        /* 图鉴信息卡片 */
+        .pokedex-info-card {
+            background: linear-gradient(135deg, #FFB6C1 0%, #87CEEB 100%);
+            padding: 30px;
+            border-radius: 25px;
+            margin: 25px 0;
+            color: white;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .pokedex-info-card img {
+            width: 200px;
+            height: 200px;
+            object-fit: contain;
+            background: white;
+            border-radius: 20px;
+            padding: 15px;
+            margin: 15px auto;
+            display: block;
+            animation: capture-success 0.8s ease-out;
+        }
+
+        @keyframes capture-success {
+            0% { transform: scale(0) rotate(0deg); opacity: 0; }
+            50% { transform: scale(1.2) rotate(180deg); }
+            100% { transform: scale(1) rotate(360deg); opacity: 1; }
+        }
+
+        .pokedex-info-card .info-row {
+            margin: 10px 0;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+
+        .pokedex-info-card .info-label {
+            font-weight: bold;
+            color: #FFE66D;
+        }
+
+        /* 庆祝特效 */
+        .celebration {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #FFE66D;
+            animation: confetti-fall 3s linear forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* 闪光效果 */
+        .sparkle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle, white 20%, transparent 70%);
+            border-radius: 50%;
+            animation: sparkle-animation 1s ease-out forwards;
+        }
+
+        @keyframes sparkle-animation {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        /* 错误抖动效果 */
+        .shake-error {
+            animation: shake-error 0.5s ease-in-out;
+        }
+
+        @keyframes shake-error {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+
+        .feedback-content.error {
+            border: 3px solid #FF6B6B;
+        }
+
+        .feedback-content.success {
+            border: 3px solid #4ECDC4;
+        }
+
+        /* 设置界面 */
+        .settings-screen {
+            display: none;
+            padding: 40px;
+            color: white;
+            text-align: center;
+        }
+
+        .settings-screen.active {
+            display: block;
+        }
+
+        .settings-screen h2 {
+            font-size: 48px;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .settings-section {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 25px;
+            padding: 30px;
+            margin: 25px auto;
+            max-width: 600px;
+        }
+
+        .settings-section h3 {
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+
+        .speed-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .speed-btn {
+            padding: 15px 30px;
+            font-size: 24px;
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            border: 3px solid white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            min-width: 100px;
+        }
+
+        .speed-btn.active {
+            background: linear-gradient(135deg, #FF6B9D 0%, #FF8FB2 100%);
+            border-color: #FF6B9D;
+            box-shadow: 0 4px 12px rgba(255, 107, 157, 0.4);
+            transform: scale(1.1);
+        }
+
+        .speed-btn:active {
+            transform: scale(0.95);
+        }
+
+        .settings-btn {
+            display: block;
+            width: 100%;
+            max-width: 600px;
+            margin: 25px auto;
+            padding: 25px;
+            font-size: 28px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .settings-btn.danger {
+            background: #FF6B6B;
+            color: white;
+        }
+
+        .settings-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 768px) {
+            .navbar h1 {
+                font-size: 18px;
+            }
+
+            .nav-btn {
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+
+            .question-area {
+                min-width: auto;
+                width: 100%;
+            }
+
+            .pokeball-option {
+                width: 100px;
+                height: 100px;
+            }
+
+            .pokeball-option span {
+                width: 50px;
+                height: 50px;
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部导航栏 -->
+        <nav class="navbar">
+            <h1>🎮 宝可梦拼音大搜查</h1>
+            <div class="nav-buttons">
+                <button class="nav-btn primary" onclick="showScreen('game')">游戏</button>
+                <button class="nav-btn secondary" onclick="showScreen('pokedex')">图鉴</button>
+                <button class="nav-btn secondary" onclick="showScreen('settings')">设置</button>
+            </div>
+        </nav>
+
+        <!-- 游戏主界面 -->
+        <div id="gameScreen" class="game-container active">
+            <!-- 初始草丛 -->
+            <div id="grassPatch" class="grass-patch" onclick="encounterPokemon()"></div>
+            <div class="hint-text">👆 点击草丛寻找宝可梦！</div>
+
+            <!-- 遭遇界面 -->
+            <div id="encounterScreen" class="encounter-screen">
+                <div class="pokemon-name" id="pokemonName"></div>
+                <div class="pokemon-display shadow" id="pokemonDisplay">
+                    <img id="pokemonImage" src="" alt="宝可梦">
+                </div>
+                <div class="question-area">
+                    <div class="question-text">这个字怎么读？</div>
+                    <div class="pinyin-blank" id="pinyinBlank">P_</div>
+                    <button class="repeat-btn" onclick="repeatQuestion()">🔊 重新读题</button>
+                </div>
+                <div class="options-container" id="optionsContainer">
+                    <!-- 精灵球选项将通过JS生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 图鉴界面 -->
+        <div id="pokedexScreen" class="pokedex-screen">
+            <div class="pokedex-filter">
+                <div class="filter-toggle">
+                    <button class="filter-btn active" onclick="setPokedexFilter('captured')">✅ 已捕获</button>
+                    <button class="filter-btn" onclick="setPokedexFilter('all')">📋 全部</button>
+                </div>
+            </div>
+            <div class="pokedex-grid" id="pokedexGrid">
+                <!-- 图鉴卡片将通过JS生成 -->
+            </div>
+        </div>
+
+        <!-- 设置界面 -->
+        <div id="settingsScreen" class="settings-screen">
+            <h2>⚙️ 设置</h2>
+
+            <div class="settings-section">
+                <h3>🔊 语音速度</h3>
+                <p style="font-size: 22px; margin-bottom: 20px;">选择读题速度</p>
+                <div class="speed-controls">
+                    <button class="speed-btn" onclick="setSpeechSpeed(0.6)">很慢</button>
+                    <button class="speed-btn" onclick="setSpeechSpeed(0.8)">慢</button>
+                    <button class="speed-btn active" onclick="setSpeechSpeed(1.0)">正常</button>
+                    <button class="speed-btn" onclick="setSpeechSpeed(1.2)">快</button>
+                    <button class="speed-btn" onclick="setSpeechSpeed(1.4)">很快</button>
+                </div>
+            </div>
+
+            <button class="settings-btn danger" onclick="clearData()">🗑️ 清除所有进度</button>
+            <button class="settings-btn secondary" onclick="showScreen('game')" style="background: linear-gradient(135deg, #4ECDC4 0%, #72DFD8 100%);">返回游戏</button>
+        </div>
+
+        <!-- 反馈弹窗 -->
+        <div id="feedbackModal" class="feedback-modal">
+            <div class="feedback-content" id="feedbackContent">
+                <h2 id="feedbackTitle">太棒了！</h2>
+                <p id="feedbackMessage">捕捉成功！</p>
+                <button onclick="closeFeedback()">继续冒险</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载宝可梦数据库（全部1025只宝可梦） -->
+    <script src="pokemon_database.js"></script>
+
+    <script>
+        // 宝可梦数据库已从 pokemon_database.js 加载
+        // 包含全部1025只宝可梦的中文名称、拼音和挑战题目
+
+        // 游戏状态
+        let currentPokemon = null;
+        let currentChallenge = null;
+        let capturedPokemon = loadProgress();
+        let pokedexFilter = 'captured'; // 图鉴筛选模式：'captured' 或 'all'
+        let speechSpeed = 1.0; // 语音速度：0.6-1.4
+
+        // 语音合成系统
+        const synth = window.speechSynthesis;
+        let voiceCache = null;
+
+        // 获取中文语音
+        function getChineseVoice() {
+            if (voiceCache) return voiceCache;
+            const voices = synth.getVoices();
+            // 优先选择中文语音
+            voiceCache = voices.find(v => v.lang.includes('zh')) || voices[0];
+            return voiceCache;
+        }
+
+        // 播放语音
+        function speak(text, rate = null) {
+            // 取消之前的语音
+            synth.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-CN';
+            utterance.rate = rate || speechSpeed; // 使用传入的速度或全局设置的速度
+            utterance.pitch = 1;
+            utterance.volume = 1;
+
+            // 等待语音加载
+            if (synth.getVoices().length === 0) {
+                synth.addEventListener('voiceschanged', () => {
+                    utterance.voice = getChineseVoice();
+                    synth.speak(utterance);
+                }, { once: true });
+            } else {
+                utterance.voice = getChineseVoice();
+                synth.speak(utterance);
+            }
+        }
+
+        // 设置语音速度
+        function setSpeechSpeed(speed) {
+            speechSpeed = speed;
+
+            // 更新按钮状态
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // 保存到localStorage
+            localStorage.setItem('speechSpeed', speed);
+
+            // 播放示例
+            speak('速度已更改');
+        }
+
+        // 重新读题
+        function repeatQuestion() {
+            if (!currentPokemon || !currentChallenge) return;
+
+            const charIndex = currentChallenge.charIndex;
+            const targetChar = currentPokemon.name.split('')[charIndex];
+            const fullPinyin = currentPokemon.pinyin[charIndex];
+
+            speak(`${targetChar}字，${fullPinyin}`);
+        }
+
+        // 读出宝可梦名称
+        function speakPokemonName(pokemonId) {
+            const pokemon = pokemonDatabase.find(p => p.id === pokemonId);
+            if (!pokemon) return;
+
+            // 读出名称和拼音
+            const nameText = pokemon.name.split('').join('，');
+            const pinyinText = pokemon.pinyin.join(' ');
+            speak(`${nameText}，拼音：${pinyinText}`);
+        }
+
+        // 拼音教学口诀（用于语音播报）
+        const pinyinTeaching = {
+            // 声母
+            'p': '坡', 'b': '波', 'd': '得', 't': '特',
+            'm': '摸', 'f': '佛', 'n': '呢', 'l': '勒',
+            'g': '哥', 'k': '科', 'h': '喝',
+            'j': '鸡', 'q': '七', 'x': '西',
+            'z': '资', 'c': '词', 's': '思',
+            'y': '医', 'w': '屋', 'r': '日',
+            'zh': '知', 'ch': '吃', 'sh': '诗',
+            // 大写声母（用于查找）
+            'P': '坡', 'B': '波', 'D': '得', 'T': '特',
+            'M': '摸', 'F': '佛', 'N': '呢', 'L': '勒',
+            'G': '哥', 'K': '科', 'H': '喝',
+            'J': '鸡', 'Q': '七', 'X': '西',
+            'Z': '资', 'C': '词', 'S': '思',
+            'Y': '医', 'W': '屋', 'R': '日',
+            // 韵母
+            'a': '啊', 'o': '喔', 'e': '鹅',
+            'i': '衣', 'u': '乌', 'ü': '鱼',
+            'ai': '哀', 'ei': '诶', 'ui': '威', 'ao': '熬', 'ou': '欧', 'iu': '优',
+            'ie': '耶', 'üe': '约', 'er': '儿',
+            'an': '安', 'en': '恩', 'in': '因', 'un': '温', 'ün': '晕',
+            'ang': '昂', 'eng': '亨', 'ing': '英', 'ong': '翁'
+        };
+
+        // 教学口诀数据库
+        const teachingTips = {
+            "b-d": "记住口诀：左下半圆 d d d，右下半圆 b b b！",
+            "p-q": "记住口诀：左上半圆 q q q，右上半圆 p p p！",
+            "ang-eng": "记住：ang 是后鼻音，eng 是前鼻音，张大嘴巴读 ang！",
+            "in-ing": "记住：in 是前鼻音，ing 是后鼻音，ing 后面有个 g！",
+            "default": "哎呀，让它逃走了！再仔细看看拼音，多读几遍试试！"
+        };
+
+        // 初始化
+        function init() {
+            renderPokedex();
+
+            // 加载保存的语速设置
+            const savedSpeed = localStorage.getItem('speechSpeed');
+            if (savedSpeed) {
+                speechSpeed = parseFloat(savedSpeed);
+            }
+
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('service-worker.js');
+            }
+        }
+
+        // 界面切换
+        function showScreen(screenName) {
+            document.querySelectorAll('.game-container, .pokedex-screen, .settings-screen').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            if (screenName === 'game') {
+                document.getElementById('gameScreen').classList.add('active');
+                resetGame();
+            } else if (screenName === 'pokedex') {
+                document.getElementById('pokedexScreen').classList.add('active');
+                renderPokedex();
+            } else if (screenName === 'settings') {
+                document.getElementById('settingsScreen').classList.add('active');
+            }
+        }
+
+        // 遭遇宝可梦
+        function encounterPokemon() {
+            // 随机选择一只宝可梦
+            currentPokemon = pokemonDatabase[Math.floor(Math.random() * pokemonDatabase.length)];
+
+            // 随机选择一个挑战题目
+            currentChallenge = currentPokemon.challenges[Math.floor(Math.random() * currentPokemon.challenges.length)];
+
+            // 隐藏草丛，显示遭遇界面
+            document.getElementById('grassPatch').style.display = 'none';
+            document.querySelector('.hint-text').style.display = 'none';
+            document.getElementById('encounterScreen').classList.add('active');
+
+            // 显示宝可梦信息（高亮当前考察的字）
+            const charIndex = currentChallenge.charIndex;
+            const nameChars = currentPokemon.name.split('');
+            const highlightedName = nameChars.map((char, index) => {
+                if (index === charIndex) {
+                    return `<span class="highlight">${char}</span>`;
+                }
+                return char;
+            }).join('');
+            document.getElementById('pokemonName').innerHTML = highlightedName;
+            document.getElementById('pokemonImage').src = currentPokemon.image;
+
+            // 生成题目
+            generateQuestion();
+
+            // 播放语音提示
+            setTimeout(() => {
+                const targetChar = nameChars[charIndex];
+                speak(`${currentPokemon.name}的${targetChar}字怎么拼？`);
+            }, 500);
+        }
+
+        // 生成题目
+        function generateQuestion() {
+            const charIndex = currentChallenge.charIndex;
+            const pinyin = currentPokemon.pinyin[charIndex];
+            const target = currentChallenge.target;
+
+            // 生成填空题
+            let blankPinyin = pinyin.replace(new RegExp(target, 'i'), '_'.repeat(target.length));
+            document.getElementById('pinyinBlank').textContent = blankPinyin;
+
+            // 生成选项（精灵球）
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = '';
+
+            // 打乱选项顺序
+            const shuffledOptions = [...currentChallenge.options].sort(() => Math.random() - 0.5);
+
+            shuffledOptions.forEach(option => {
+                const pokeball = document.createElement('div');
+                pokeball.className = 'pokeball-option';
+                pokeball.innerHTML = `<span>${option}</span>`;
+                pokeball.onclick = () => checkAnswer(option);
+                optionsContainer.appendChild(pokeball);
+            });
+        }
+
+        // 检查答案
+        function checkAnswer(selectedOption) {
+            const correctAnswer = currentChallenge.target;
+            const isCorrect = selectedOption === correctAnswer;
+
+            // 禁用所有按钮
+            document.querySelectorAll('.pokeball-option').forEach(el => {
+                el.style.pointerEvents = 'none';
+            });
+
+            // 获取拼音和教学口诀
+            const charIndex = currentChallenge.charIndex;
+            const fullPinyin = currentPokemon.pinyin[charIndex];
+            const pinyinWithoutTone = fullPinyin.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+            // 立即显示完整的正确拼音（无论对错）
+            document.getElementById('pinyinBlank').textContent = fullPinyin;
+
+            if (isCorrect) {
+                // 使用标准拼音拼读方式（根据NotebookLM教学建议）
+                const targetChar = currentPokemon.name.split('')[charIndex];
+
+                // 获取完整拼音，用连读方式播报
+                // 例如："皮"字 pí -> 播报 "p-í，pí"
+                const pinyinText = fullPinyin;
+
+                // 构建拼读语音：用拼音字母本身来读
+                // 浏览器的中文语音引擎会正确读出拼音
+                let speechText = `${targetChar}字，${pinyinText}`;
+
+                speak(speechText);
+
+                // 正确答案 - 延迟显示，等语音播完
+                setTimeout(() => {
+                    document.querySelector('.pokemon-display').classList.remove('shadow');
+
+                    // 保存捕获记录
+                    const isNewCapture = !capturedPokemon.includes(currentPokemon.id);
+                    if (isNewCapture) {
+                        capturedPokemon.push(currentPokemon.id);
+                        saveProgress();
+                    }
+
+                    // 触发庆祝特效
+                    createCelebration();
+
+                    // 显示成功反馈（带图鉴信息）
+                    setTimeout(() => {
+                        speak('捕获成功');  // 简化语音，只说"捕获成功"
+                        showSuccessFeedback(isNewCapture);
+                    }, 1500);
+                }, 1500);
+            } else {
+                // 错误答案
+                const targetChar = currentPokemon.name.split('')[charIndex];
+                const tip = getTeachingTip(correctAnswer, selectedOption);
+
+                // 宝可梦逃跑动画
+                const pokemonDisplay = document.querySelector('.pokemon-display');
+                pokemonDisplay.style.animation = 'shake-error 0.5s ease-in-out';
+
+                // 使用标准拼音方式播报正确答案
+                // 例如："皮"字应该读 pí
+                const correctPinyinFull = currentPokemon.pinyin[charIndex];
+
+                // 先播报正确的拼音读法
+                speak(`${targetChar}字，${correctPinyinFull}`, 1.0);
+
+                // 1.5秒后播报"宝可梦逃走了"
+                setTimeout(() => {
+                    speak('宝可梦逃走了', 1.0);
+                }, 1500);
+
+                // 显示简短的错误提示
+                setTimeout(() => {
+                    showFeedback(false, '宝可梦逃跑了！', `正确拼音：${correctPinyinFull}<br><br>📚 ${tip}`, true);
+                }, 1000);
+
+                // 4秒后自动返回草丛（增加时间让语音播完）
+                setTimeout(() => {
+                    closeFeedback();
+                }, 4500);
+            }
+        }
+
+        // 获取教学提示
+        function getTeachingTip(correct, wrong) {
+            // b/d 易混淆
+            if ((correct === 'b' && wrong === 'd') || (correct === 'd' && wrong === 'b')) {
+                return teachingTips["b-d"];
+            }
+            // p/q 易混淆
+            if ((correct === 'p' && wrong === 'q') || (correct === 'q' && wrong === 'p')) {
+                return teachingTips["p-q"];
+            }
+            // 前后鼻音
+            if (correct.includes('ang') && wrong.includes('eng')) {
+                return teachingTips["ang-eng"];
+            }
+            if (correct.includes('in') && !correct.includes('ing') && wrong.includes('ing')) {
+                return teachingTips["in-ing"];
+            }
+
+            return teachingTips["default"];
+        }
+
+        // 创建庆祝特效
+        function createCelebration() {
+            const celebration = document.createElement('div');
+            celebration.className = 'celebration';
+            document.body.appendChild(celebration);
+
+            // 创建彩纸
+            const colors = ['#FFE66D', '#FF6B6B', '#4ECDC4', '#95E1D3', '#F38181'];
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + '%';
+                    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 0.5 + 's';
+                    confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                    celebration.appendChild(confetti);
+                }, i * 30);
+            }
+
+            // 创建闪光效果
+            const display = document.querySelector('.pokemon-display');
+            const rect = display.getBoundingClientRect();
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    const sparkle = document.createElement('div');
+                    sparkle.className = 'sparkle';
+                    sparkle.style.left = (rect.left + Math.random() * rect.width) + 'px';
+                    sparkle.style.top = (rect.top + Math.random() * rect.height) + 'px';
+                    document.body.appendChild(sparkle);
+
+                    setTimeout(() => sparkle.remove(), 1000);
+                }, i * 50);
+            }
+
+            // 3秒后清除庆祝效果
+            setTimeout(() => celebration.remove(), 3000);
+        }
+
+        // 显示成功反馈（简化版：只显示图片和继续按钮）
+        function showSuccessFeedback(isNewCapture) {
+            const modal = document.getElementById('feedbackModal');
+            const content = document.getElementById('feedbackContent');
+
+            content.className = 'feedback-content success';
+
+            // 简化版：只显示大图和继续按钮
+            const infoCard = `
+                <div style="text-align: center;">
+                    <img src="${currentPokemon.image}" alt="${currentPokemon.name}"
+                         style="width: 350px; height: 350px; object-fit: contain; margin: 20px auto;">
+                </div>
+                <button onclick="closeFeedback()" style="font-size: 36px; padding: 25px 60px; margin-top: 30px;">继续冒险</button>
+            `;
+
+            content.innerHTML = infoCard;
+            modal.classList.add('active');
+        }
+
+        // 显示反馈
+        function showFeedback(isSuccess, title, message, autoClose = false) {
+            const modal = document.getElementById('feedbackModal');
+            const content = document.getElementById('feedbackContent');
+            const titleEl = document.getElementById('feedbackTitle');
+            const messageEl = document.getElementById('feedbackMessage');
+
+            content.className = 'feedback-content ' + (isSuccess ? 'success' : 'error');
+
+            // 错误时添加抖动效果
+            if (!isSuccess) {
+                content.classList.add('shake-error');
+                setTimeout(() => content.classList.remove('shake-error'), 500);
+            }
+
+            titleEl.textContent = title;
+            messageEl.innerHTML = message;
+            modal.classList.add('active');
+
+            // 如果是自动关闭模式，隐藏按钮或显示倒计时
+            const button = content.querySelector('button');
+            if (button && autoClose) {
+                button.textContent = '正在返回草丛...';
+                button.disabled = true;
+                button.style.opacity = '0.6';
+            }
+        }
+
+        // 关闭反馈
+        function closeFeedback() {
+            document.getElementById('feedbackModal').classList.remove('active');
+            resetGame();
+        }
+
+        // 重置游戏
+        function resetGame() {
+            document.getElementById('grassPatch').style.display = 'block';
+            document.querySelector('.hint-text').style.display = 'block';
+            document.getElementById('encounterScreen').classList.remove('active');
+            document.querySelector('.pokemon-display').classList.add('shadow');
+
+            // 重新启用按钮
+            document.querySelectorAll('.pokeball-option').forEach(el => {
+                el.style.pointerEvents = 'auto';
+            });
+        }
+
+        // 设置图鉴筛选模式
+        function setPokedexFilter(mode) {
+            pokedexFilter = mode;
+
+            // 更新按钮状态
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // 重新渲染图鉴
+            renderPokedex();
+        }
+
+        // 渲染图鉴
+        function renderPokedex() {
+            const container = document.getElementById('pokedexScreen');
+            const grid = document.getElementById('pokedexGrid');
+            grid.innerHTML = '';
+
+            // 移除旧的统计信息（如果存在）
+            const oldStats = container.querySelector('.pokedex-stats');
+            if (oldStats) {
+                oldStats.remove();
+            }
+
+            // 根据筛选模式过滤宝可梦
+            let displayPokemon = pokemonDatabase;
+            if (pokedexFilter === 'captured') {
+                displayPokemon = pokemonDatabase.filter(p => capturedPokemon.includes(p.id));
+            }
+
+            // 添加图鉴统计信息
+            const statsDiv = document.createElement('div');
+            statsDiv.className = 'pokedex-stats';
+            statsDiv.style.cssText = 'text-align: center; color: white; font-size: 36px; font-weight: bold; margin: 25px auto; padding: 30px; background: rgba(255,255,255,0.2); border-radius: 25px; max-width: 700px;';
+
+            const statsText = pokedexFilter === 'captured'
+                ? `✅ 已捕获：${capturedPokemon.length} 只`
+                : `📊 捕获进度：${capturedPokemon.length} / ${pokemonDatabase.length}`;
+
+            const encouragement = capturedPokemon.length === 0 ? '开始你的冒险吧！' :
+                                  capturedPokemon.length === pokemonDatabase.length ? '🎉 恭喜！已捕获全部宝可梦！' :
+                                  '继续加油！';
+
+            statsDiv.innerHTML = `
+                ${statsText}
+                <br>
+                <small style="font-size: 28px; font-weight: normal;">
+                    ${encouragement}
+                </small>
+            `;
+            container.insertBefore(statsDiv, container.querySelector('.pokedex-filter').nextSibling);
+
+            // 如果是"已捕获"模式且没有捕获任何宝可梦，显示提示
+            if (pokedexFilter === 'captured' && displayPokemon.length === 0) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.style.cssText = 'text-align: center; color: white; font-size: 32px; padding: 80px 20px; margin: 0 auto;';
+                emptyDiv.innerHTML = `
+                    <div style="font-size: 120px; margin-bottom: 30px;">🎮</div>
+                    <div style="font-weight: bold; margin-bottom: 20px; font-size: 38px;">还没有捕获宝可梦</div>
+                    <div style="font-size: 28px; opacity: 0.9;">快去草丛里寻找吧！</div>
+                `;
+                grid.appendChild(emptyDiv);
+                return;
+            }
+
+            // 渲染宝可梦卡片
+            displayPokemon.forEach(pokemon => {
+                const isCaptured = capturedPokemon.includes(pokemon.id);
+                const card = document.createElement('div');
+                card.className = 'pokedex-card' + (isCaptured ? '' : ' locked');
+
+                if (isCaptured) {
+                    // 已捕捉：显示完整信息
+                    card.innerHTML = `
+                        <button class="pokedex-sound-btn" onclick="speakPokemonName(${pokemon.id})">🔊</button>
+                        <img src="${pokemon.image}" alt="${pokemon.name}">
+                        <div class="pokemon-info">
+                            <strong>${pokemon.name}</strong>
+                            <br>
+                            <small style="color: #666;">#${String(pokemon.id).padStart(3, '0')}</small>
+                            <br>
+                            <small style="color: #FF6B6B; font-weight: bold;">${pokemon.pinyin.join(' ')}</small>
+                        </div>
+                    `;
+                } else {
+                    // 未捕捉：显示问号
+                    card.innerHTML = `
+                        <img src="${pokemon.image}" alt="未知宝可梦">
+                        <div class="pokemon-info">
+                            <strong>???</strong>
+                            <br>
+                            <small style="color: #999;">未捕捉</small>
+                        </div>
+                    `;
+                }
+
+                grid.appendChild(card);
+            });
+        }
+
+        // 保存进度
+        function saveProgress() {
+            localStorage.setItem('pokemonPinyinProgress', JSON.stringify(capturedPokemon));
+        }
+
+        // 加载进度
+        function loadProgress() {
+            const saved = localStorage.getItem('pokemonPinyinProgress');
+            return saved ? JSON.parse(saved) : [];
+        }
+
+        // 清除数据
+        function clearData() {
+            if (confirm('确定要清除所有进度吗？这将删除所有已捕捉的宝可梦！')) {
+                localStorage.removeItem('pokemonPinyinProgress');
+                capturedPokemon = [];
+                alert('进度已清除！');
+                showScreen('game');
+            }
+        }
+
+        // 页面加载时初始化
+        window.onload = init;
+    </script>
+</body>
+</html>
