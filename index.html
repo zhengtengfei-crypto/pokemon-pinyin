@@ -89,10 +89,12 @@
             flex: 1;
             display: none; /* 默认隐藏 */
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
-            padding: 20px;
+            padding: 15px;
             position: relative;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .game-container.active {
@@ -101,13 +103,14 @@
 
         /* 草丛 */
         .grass-patch {
-            width: 350px;
-            height: 350px;
+            width: 280px;
+            height: 280px;
             background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle fill="%2345B649" cx="50" cy="50" r="40"/><path fill="%2338A33C" d="M30,50 Q35,30 40,50 Q45,30 50,50 Q55,30 60,50 Q65,30 70,50"/></svg>') center/contain no-repeat;
             cursor: pointer;
             animation: shake 2s ease-in-out infinite;
             transition: transform 0.2s;
-            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+            filter: drop-shadow(0 8px 15px rgba(0,0,0,0.3));
+            margin-top: 60px;
         }
 
         .grass-patch:active {
@@ -142,9 +145,10 @@
             display: none;
             flex-direction: column;
             align-items: center;
-            gap: 30px;
+            gap: 15px;
             width: 100%;
             max-width: 600px;
+            padding-bottom: 30px;
         }
 
         .encounter-screen.active {
@@ -152,22 +156,22 @@
         }
 
         .pokemon-display {
-            width: 320px;
-            height: 320px;
+            width: 220px;
+            height: 220px;
             background: rgba(255, 255, 255, 0.95);
-            border-radius: 30px;
+            border-radius: 25px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
             position: relative;
             overflow: hidden;
-            border: 6px solid rgba(255, 255, 255, 0.8);
+            border: 5px solid rgba(255, 255, 255, 0.8);
         }
 
         .pokemon-display img {
-            width: 260px;
-            height: 260px;
+            width: 180px;
+            height: 180px;
             object-fit: contain;
             transition: filter 0.5s;
         }
@@ -177,13 +181,13 @@
         }
 
         .pokemon-name {
-            font-size: 48px;
+            font-size: 36px;
             font-weight: bold;
             color: white;
-            text-shadow: 4px 4px 8px rgba(0,0,0,0.6);
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.6);
             background: rgba(0, 0, 0, 0.35);
-            padding: 18px 40px;
-            border-radius: 25px;
+            padding: 12px 30px;
+            border-radius: 20px;
         }
 
         .pokemon-name .highlight {
@@ -203,38 +207,40 @@
         /* 题目区域 */
         .question-area {
             background: rgba(255, 255, 255, 0.95);
-            padding: 35px;
-            border-radius: 30px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+            padding: 20px;
+            border-radius: 25px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
             text-align: center;
-            min-width: 500px;
-            border: 5px solid rgba(255, 255, 255, 0.8);
+            min-width: auto;
+            width: 90%;
+            max-width: 500px;
+            border: 4px solid rgba(255, 255, 255, 0.8);
         }
 
         .question-text {
-            font-size: 38px;
+            font-size: 28px;
             color: #333;
-            margin-bottom: 25px;
+            margin-bottom: 15px;
             font-weight: bold;
         }
 
         .pinyin-blank {
-            font-size: 52px;
+            font-size: 40px;
             color: #FF6B9D;
             font-weight: bold;
-            letter-spacing: 6px;
+            letter-spacing: 4px;
             text-shadow: 2px 2px 4px rgba(255, 107, 157, 0.3);
         }
 
         /* 重读按钮 */
         .repeat-btn {
-            margin-top: 20px;
-            padding: 15px 35px;
-            font-size: 28px;
+            margin-top: 15px;
+            padding: 12px 28px;
+            font-size: 22px;
             background: linear-gradient(135deg, #4ECDC4 0%, #72DFD8 100%);
             color: white;
             border: none;
-            border-radius: 25px;
+            border-radius: 20px;
             cursor: pointer;
             font-weight: bold;
             box-shadow: 0 4px 12px rgba(78, 205, 196, 0.4);
@@ -248,24 +254,25 @@
         /* 选项按钮（精灵球） */
         .options-container {
             display: flex;
-            gap: 30px;
+            gap: 20px;
             justify-content: center;
             flex-wrap: wrap;
+            margin-top: 10px;
         }
 
         .pokeball-option {
-            width: 160px;
-            height: 160px;
+            width: 110px;
+            height: 110px;
             background: radial-gradient(circle at 50% 45%, #FF3B3B 50%, #1A1A1A 50%, #1A1A1A 52%, #fff 52%);
             border-radius: 50%;
-            border: 7px solid #333;
+            border: 5px solid #333;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             position: relative;
             transition: transform 0.3s, box-shadow 0.3s;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.4);
         }
 
         .pokeball-option:hover {
@@ -276,23 +283,23 @@
         .pokeball-option::after {
             content: '';
             position: absolute;
-            width: 40px;
-            height: 40px;
+            width: 30px;
+            height: 30px;
             background: white;
-            border: 7px solid #333;
+            border: 5px solid #333;
             border-radius: 50%;
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.3);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
         }
 
         .pokeball-option span {
             position: relative;
             z-index: 1;
-            font-size: 48px;
+            font-size: 36px;
             font-weight: bold;
             color: #333;
             background: white;
-            width: 60px;
-            height: 60px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             display: flex;
             align-items: center;
