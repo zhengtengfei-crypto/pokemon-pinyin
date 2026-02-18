@@ -906,6 +906,37 @@
             speak(`${nameText}，拼音：${pinyinText}`);
         }
 
+        // 检查拼音组合是否有效
+        function isValidPinyin(initial, final) {
+            // 零声母的情况（a、o、e、ai、ei等开头）
+            if (initial === '') return true;
+
+            // 去掉声调获取基础形式
+            const baseFinal = final.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+            // 一些无效的声母+韵母组合规则
+            const invalidCombos = [
+                // w后面只能跟a、o、u开头的韵母
+                { initial: 'w', invalid: /^[eiy]/ },
+                // y后面只能跟a、o、i、u开头的韵母
+                { initial: 'y', invalid: /^[ew]/ },
+                // zh、ch、sh、r后面不能跟i开头的韵母（除了i本身和in、ing）
+                { initial: /^(zh|ch|sh|r)$/, invalid: /^i[aou]/ },
+            ];
+
+            for (const rule of invalidCombos) {
+                const initialMatch = typeof rule.initial === 'string'
+                    ? initial === rule.initial
+                    : rule.initial.test(initial);
+
+                if (initialMatch && rule.invalid.test(baseFinal)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         // 拼音教学口诀（用于语音播报）
         const pinyinTeaching = {
             // 声母
@@ -1104,10 +1135,52 @@
                 if (clickedBall) {
                     clickedBall.classList.add('shake-error');
 
-                    // 读出错误选项的拼音（确保使用拼音读法）
-                    // 将选项替换到拼音中，让语音引擎按拼音读
-                    const wrongPinyin = fullPinyin.replace(correctAnswer, selectedOption);
-                    speak(`${wrongPinyin}，不对`);
+                    // 智能读出错误选项（确保是有效的拼音发音）
+                    let wrongSpeech = '';
+                    const challengeType = currentChallenge.type;
+
+                    if (challengeType === 'initial') {
+                        // 声母题目：使用声母教学发音
+                        const teaching = pinyinTeaching[selectedOption] || pinyinTeaching[selectedOption.toUpperCase()];
+                        if (teaching) {
+                            wrongSpeech = `${teaching}，${selectedOption}，不对`;
+                        } else {
+                            // 对于zh、ch、sh等组合声母，直接读
+                            wrongSpeech = `${selectedOption}，不对`;
+                        }
+                    } else if (challengeType === 'final') {
+                        // 韵母题目：构建完整拼音并读出
+                        // 获取声母部分（正确答案前面的部分）
+                        const initialPart = fullPinyin.slice(0, fullPinyin.indexOf(correctAnswer));
+
+                        // 检查是否是零声母（直接是韵母）
+                        if (initialPart === '') {
+                            // 零声母，直接读韵母
+                            wrongSpeech = `${selectedOption}，不对`;
+                        } else {
+                            // 有声母，检查组合是否有效
+                            const baseInitial = initialPart.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                            if (isValidPinyin(baseInitial, selectedOption)) {
+                                // 组合有效，读完整拼音
+                                const wrongPinyin = initialPart + selectedOption;
+                                wrongSpeech = `${wrongPinyin}，不对`;
+                            } else {
+                                // 组合无效，分别读声母和韵母
+                                const initialTeaching = pinyinTeaching[baseInitial];
+                                const finalTeaching = pinyinTeaching[selectedOption.normalize('NFD').replace(/[\u0300-\u036f]/g, '')];
+                                if (initialTeaching && finalTeaching) {
+                                    wrongSpeech = `${initialTeaching}${finalTeaching}，不对`;
+                                } else {
+                                    wrongSpeech = `${baseInitial}${selectedOption}，不对`;
+                                }
+                            }
+                        }
+                    } else {
+                        // 整体认读或其他类型：直接读选项
+                        wrongSpeech = `${selectedOption}，不对`;
+                    }
+
+                    speak(wrongSpeech);
 
                     // 1秒后移除这个错误选项
                     setTimeout(() => {
