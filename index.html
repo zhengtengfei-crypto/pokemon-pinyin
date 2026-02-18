@@ -271,7 +271,7 @@
             justify-content: center;
             cursor: pointer;
             position: relative;
-            transition: transform 0.3s, box-shadow 0.3s;
+            transition: transform 0.3s, box-shadow 0.3s, opacity 0.3s;
             box-shadow: 0 6px 15px rgba(0,0,0,0.4);
         }
 
@@ -1039,25 +1039,21 @@
             const correctAnswer = currentChallenge.target;
             const isCorrect = selectedOption === correctAnswer;
 
-            // 禁用所有按钮
-            document.querySelectorAll('.pokeball-option').forEach(el => {
-                el.style.pointerEvents = 'none';
-            });
-
             // 获取拼音和教学口诀
             const charIndex = currentChallenge.charIndex;
             const fullPinyin = currentPokemon.pinyin[charIndex];
-            const pinyinWithoutTone = fullPinyin.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-            // 立即显示完整的正确拼音（无论对错）
-            document.getElementById('pinyinBlank').textContent = fullPinyin;
+            const targetChar = currentPokemon.name.split('')[charIndex];
 
             if (isCorrect) {
-                // 使用标准拼音拼读方式（根据NotebookLM教学建议）
-                const targetChar = currentPokemon.name.split('')[charIndex];
+                // 禁用所有按钮（答对了）
+                document.querySelectorAll('.pokeball-option').forEach(el => {
+                    el.style.pointerEvents = 'none';
+                });
 
-                // 获取完整拼音，用连读方式播报
-                // 例如："皮"字 pí -> 播报 "p-í，pí"
+                // 立即显示完整的正确拼音
+                document.getElementById('pinyinBlank').textContent = fullPinyin;
+
+                // 使用标准拼音拼读方式（根据NotebookLM教学建议）
                 const pinyinText = fullPinyin;
 
                 // 构建拼读语音：用拼音字母本身来读
@@ -1082,40 +1078,61 @@
 
                     // 显示成功反馈（带图鉴信息）
                     setTimeout(() => {
-                        speak('捕获成功');  // 简化语音，只说"捕获成功"
-                        showSuccessFeedback(isNewCapture);
+                        // 先念一遍完整的宝可梦名称拼音
+                        const nameChars = currentPokemon.name.split('');
+                        const pinyinSequence = currentPokemon.pinyin.join('，');
+                        const nameSequence = nameChars.join('，');
+                        speak(`${nameSequence}，拼音：${pinyinSequence}`);
+
+                        // 等拼音念完后，再说"捕获成功"并显示反馈
+                        setTimeout(() => {
+                            speak('捕获成功');
+                            showSuccessFeedback(isNewCapture);
+                        }, 2500); // 根据名字长度可能需要调整这个延迟
                     }, 1500);
                 }, 1500);
             } else {
-                // 错误答案
-                const targetChar = currentPokemon.name.split('')[charIndex];
-                const tip = getTeachingTip(correctAnswer, selectedOption);
+                // 错误答案 - 不逃跑，而是移除错误选项继续挑战
 
-                // 宝可梦逃跑动画
-                const pokemonDisplay = document.querySelector('.pokemon-display');
-                pokemonDisplay.style.animation = 'shake-error 0.5s ease-in-out';
+                // 临时禁用所有按钮，避免连续点击
+                document.querySelectorAll('.pokeball-option').forEach(el => {
+                    el.style.pointerEvents = 'none';
+                });
 
-                // 使用标准拼音方式播报正确答案
-                // 例如："皮"字应该读 pí
-                const correctPinyinFull = currentPokemon.pinyin[charIndex];
+                // 找到被点击的精灵球并添加抖动效果
+                const clickedBall = event.target.closest('.pokeball-option');
+                if (clickedBall) {
+                    clickedBall.classList.add('shake-error');
 
-                // 先播报正确的拼音读法
-                speak(`${targetChar}字，${correctPinyinFull}`, 1.0);
+                    // 读出错误选项的拼音（确保使用拼音读法）
+                    // 将选项替换到拼音中，让语音引擎按拼音读
+                    const wrongPinyin = fullPinyin.replace(correctAnswer, selectedOption);
+                    speak(`${wrongPinyin}，不对`);
 
-                // 1.5秒后播报"宝可梦逃走了"
-                setTimeout(() => {
-                    speak('宝可梦逃走了', 1.0);
-                }, 1500);
+                    // 1秒后移除这个错误选项
+                    setTimeout(() => {
+                        clickedBall.style.opacity = '0';
+                        clickedBall.style.transform = 'scale(0)';
 
-                // 显示简短的错误提示
-                setTimeout(() => {
-                    showFeedback(false, '宝可梦逃跑了！', `正确拼音：${correctPinyinFull}<br><br>📚 ${tip}`, true);
-                }, 1000);
+                        setTimeout(() => {
+                            clickedBall.remove();
 
-                // 4秒后自动返回草丛（增加时间让语音播完）
-                setTimeout(() => {
-                    closeFeedback();
-                }, 4500);
+                            // 重新启用剩余的按钮
+                            document.querySelectorAll('.pokeball-option').forEach(el => {
+                                el.style.pointerEvents = 'auto';
+                            });
+
+                            // 检查是否还有选项（理论上至少还有正确答案）
+                            const remainingOptions = document.querySelectorAll('.pokeball-option');
+                            if (remainingOptions.length === 1) {
+                                // 只剩最后一个选项了，给个提示
+                                setTimeout(() => {
+                                    speak('试试这个');
+                                }, 500);
+                            }
+                        }, 300);
+                    }, 1200);
+                }
             }
         }
 
