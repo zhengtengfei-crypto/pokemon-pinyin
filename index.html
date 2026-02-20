@@ -124,15 +124,15 @@
         }
 
         .hint-text {
-            margin-top: 25px;
+            margin-top: 20px;
             color: white;
-            font-size: 32px;
+            font-size: 26px;
             font-weight: bold;
-            text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
             animation: pulse 2s ease-in-out infinite;
             background: rgba(0, 0, 0, 0.2);
-            padding: 15px 30px;
-            border-radius: 20px;
+            padding: 12px 25px;
+            border-radius: 18px;
         }
 
         @keyframes pulse {
@@ -830,6 +830,7 @@
         let capturedPokemon = loadProgress();
         let pokedexFilter = 'captured'; // 图鉴筛选模式：'captured' 或 'all'
         let speechSpeed = 1.0; // 语音速度：0.6-1.4
+        let errorCount = 0; // 当前遭遇的错误次数
 
         // 语音合成系统
         const synth = window.speechSynthesis;
@@ -906,34 +907,94 @@
             speak(`${nameText}，拼音：${pinyinText}`);
         }
 
-        // 检查拼音组合是否有效
+        // 拆分拼音为声母和韵母
+        function splitPinyin(pinyin) {
+            // 去掉声调获取基础形式
+            const base = pinyin.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+            // 声母列表（按长度排序，优先匹配长的）
+            const initials = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'z', 'c', 's', 'r', 'y', 'w'];
+
+            for (const initial of initials) {
+                if (base.startsWith(initial)) {
+                    const final = pinyin.slice(initial.length);
+                    return { initial, final, base: pinyin };
+                }
+            }
+
+            // 零声母
+            return { initial: '', final: pinyin, base: pinyin };
+        }
+
+        // 拼读拼音（声母教学音+韵母教学音+完整拼音）
+        function speakPinyinWithTeaching(pinyin, char) {
+            const { initial, final } = splitPinyin(pinyin);
+
+            let speech = '';
+
+            // 读声母教学音
+            if (initial) {
+                const initialTeaching = pinyinTeaching[initial];
+                if (initialTeaching) {
+                    speech += initialTeaching;
+                }
+            }
+
+            // 读韵母教学音或韵母本身
+            const baseFinal = final.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            const finalTeaching = pinyinTeaching[baseFinal];
+            if (finalTeaching) {
+                speech += finalTeaching;
+            } else {
+                speech += final;
+            }
+
+            // 读完整的字
+            speech += char;
+
+            return speech;
+        }
+
+        // 检查拼音组合是否有效（完整版）
         function isValidPinyin(initial, final) {
-            // 零声母的情况（a、o、e、ai、ei等开头）
+            // 零声母的情况
             if (initial === '') return true;
 
             // 去掉声调获取基础形式
             const baseFinal = final.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-            // 一些无效的声母+韵母组合规则
-            const invalidCombos = [
-                // w后面只能跟a、o、u开头的韵母
-                { initial: 'w', invalid: /^[eiy]/ },
-                // y后面只能跟a、o、i、u开头的韵母
-                { initial: 'y', invalid: /^[ew]/ },
-                // zh、ch、sh、r后面不能跟i开头的韵母（除了i本身和in、ing）
-                { initial: /^(zh|ch|sh|r)$/, invalid: /^i[aou]/ },
-            ];
+            // 汉语拼音的有效组合规则
+            const rules = {
+                // w 只能跟 a, ai, an, ang, ei, en, eng, o, u 开头的韵母
+                'w': /^(a|ai|an|ang|ei|en|eng|o|u)/,
 
-            for (const rule of invalidCombos) {
-                const initialMatch = typeof rule.initial === 'string'
-                    ? initial === rule.initial
-                    : rule.initial.test(initial);
+                // y 只能跟特定韵母
+                'y': /^(a|ao|an|ang|e|i|in|ing|o|ong|ou|u|uan|un|ue)/,
 
-                if (initialMatch && rule.invalid.test(baseFinal)) {
-                    return false;
-                }
+                // zh, ch, sh, r 不能跟 ü 和以 ü 开头的韵母
+                'zh': /^(?!ü|üe|üan|ün)/,
+                'ch': /^(?!ü|üe|üan|ün)/,
+                'sh': /^(?!ü|üe|üan|ün)/,
+                'r': /^(?!ü|üe|üan|ün)/,
+
+                // j, q, x 只能跟 i, ü 或以它们开头的韵母
+                'j': /^(i|ia|ian|iang|iao|ie|in|ing|iong|iu|ü|üe|üan|ün)/,
+                'q': /^(i|ia|ian|iang|iao|ie|in|ing|iong|iu|ü|üe|üan|ün)/,
+                'x': /^(i|ia|ian|iang|iao|ie|in|ing|iong|iu|ü|üe|üan|ün)/,
+
+                // b, p, m, f 不能跟 ü 和以 ü 开头的韵母
+                'b': /^(?!ü|üe|üan|ün)/,
+                'p': /^(?!ü|üe|üan|ün)/,
+                'm': /^(?!ü|üe|üan|ün)/,
+                'f': /^(?!ü|üe|üan|ün)/,
+            };
+
+            // 检查是否有该声母的规则
+            if (rules[initial]) {
+                return rules[initial].test(baseFinal);
             }
 
+            // 其他声母默认允许（d, t, n, l, g, k, h, z, c, s）
             return true;
         }
 
@@ -1006,6 +1067,9 @@
 
         // 遭遇宝可梦
         function encounterPokemon() {
+            // 重置错误计数
+            errorCount = 0;
+
             // 随机选择一只宝可梦
             currentPokemon = pokemonDatabase[Math.floor(Math.random() * pokemonDatabase.length)];
 
@@ -1109,21 +1173,37 @@
 
                     // 显示成功反馈（带图鉴信息）
                     setTimeout(() => {
-                        // 先念一遍完整的宝可梦名称拼音
+                        // 使用拼读方式念完整的宝可梦名称（声母教学音+韵母教学音+字）
                         const nameChars = currentPokemon.name.split('');
-                        const pinyinSequence = currentPokemon.pinyin.join('，');
-                        const nameSequence = nameChars.join('，');
-                        speak(`${nameSequence}，拼音：${pinyinSequence}`);
+                        let fullSpeech = '';
 
-                        // 等拼音念完后，再说"捕获成功"并显示反馈
+                        // 为每个字拼读，并在每个字之间添加停顿
+                        nameChars.forEach((char, idx) => {
+                            const pinyin = currentPokemon.pinyin[idx];
+                            fullSpeech += speakPinyinWithTeaching(pinyin, char);
+
+                            // 在每个字后面添加停顿标记（除了最后一个字）
+                            if (idx < nameChars.length - 1) {
+                                fullSpeech += '，，'; // 双逗号增加停顿时间
+                            }
+                        });
+
+                        // 最后再念一遍完整名字
+                        fullSpeech += '。' + currentPokemon.name;
+
+                        speak(fullSpeech);
+
+                        // 根据名字字数动态调整延迟时间
+                        const delayTime = 2000 + (nameChars.length * 800);
                         setTimeout(() => {
                             speak('捕获成功');
                             showSuccessFeedback(isNewCapture);
-                        }, 2500); // 根据名字长度可能需要调整这个延迟
+                        }, delayTime);
                     }, 1500);
                 }, 1500);
             } else {
-                // 错误答案 - 不逃跑，而是移除错误选项继续挑战
+                // 错误答案 - 增加错误计数
+                errorCount++;
 
                 // 临时禁用所有按钮，避免连续点击
                 document.querySelectorAll('.pokeball-option').forEach(el => {
@@ -1182,29 +1262,47 @@
 
                     speak(wrongSpeech);
 
-                    // 1秒后移除这个错误选项
-                    setTimeout(() => {
-                        clickedBall.style.opacity = '0';
-                        clickedBall.style.transform = 'scale(0)';
-
+                    // 检查是否已经错误2次
+                    if (errorCount >= 2) {
+                        // 宝可梦逃跑
                         setTimeout(() => {
-                            clickedBall.remove();
+                            const correctPinyinFull = currentPokemon.pinyin[charIndex];
+                            speak(`正确答案是${correctPinyinFull}，宝可梦逃走了`);
 
-                            // 重新启用剩余的按钮
-                            document.querySelectorAll('.pokeball-option').forEach(el => {
-                                el.style.pointerEvents = 'auto';
-                            });
+                            // 宝可梦逃跑动画
+                            const pokemonDisplay = document.querySelector('.pokemon-display');
+                            pokemonDisplay.style.animation = 'shake-error 0.5s ease-in-out';
 
-                            // 检查是否还有选项（理论上至少还有正确答案）
-                            const remainingOptions = document.querySelectorAll('.pokeball-option');
-                            if (remainingOptions.length === 1) {
-                                // 只剩最后一个选项了，给个提示
-                                setTimeout(() => {
-                                    speak('试试这个');
-                                }, 500);
-                            }
-                        }, 300);
-                    }, 1200);
+                            // 2秒后返回草丛
+                            setTimeout(() => {
+                                closeFeedback();
+                            }, 2500);
+                        }, 1200);
+                    } else {
+                        // 还有机会，移除错误选项继续挑战
+                        setTimeout(() => {
+                            clickedBall.style.opacity = '0';
+                            clickedBall.style.transform = 'scale(0)';
+
+                            setTimeout(() => {
+                                clickedBall.remove();
+
+                                // 重新启用剩余的按钮
+                                document.querySelectorAll('.pokeball-option').forEach(el => {
+                                    el.style.pointerEvents = 'auto';
+                                });
+
+                                // 检查是否还有选项（理论上至少还有正确答案）
+                                const remainingOptions = document.querySelectorAll('.pokeball-option');
+                                if (remainingOptions.length === 1) {
+                                    // 只剩最后一个选项了，给个提示
+                                    setTimeout(() => {
+                                        speak('试试这个');
+                                    }, 500);
+                                }
+                            }, 300);
+                        }, 1200);
+                    }
                 }
             }
         }
