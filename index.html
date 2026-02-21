@@ -1076,6 +1076,10 @@
             // 随机选择一个挑战题目
             currentChallenge = currentPokemon.challenges[Math.floor(Math.random() * currentPokemon.challenges.length)];
 
+            // 预加载图片，确保答对后能立即显示
+            const img = new Image();
+            img.src = currentPokemon.image;
+
             // 隐藏草丛，显示遭遇界面
             document.getElementById('grassPatch').style.display = 'none';
             document.querySelector('.hint-text').style.display = 'none';
@@ -1374,7 +1378,7 @@
 
             content.className = 'feedback-content success';
 
-            // 简化版：只显示大图和继续按钮
+            // 简化版：只显示大图和继续按钮（预加载图片）
             const infoCard = `
                 <div style="text-align: center;">
                     <img src="${currentPokemon.image}" alt="${currentPokemon.name}"
@@ -1501,17 +1505,17 @@
                 return;
             }
 
-            // 渲染宝可梦卡片
+            // 渲染宝可梦卡片（使用懒加载优化）
             displayPokemon.forEach(pokemon => {
                 const isCaptured = capturedPokemon.includes(pokemon.id);
                 const card = document.createElement('div');
                 card.className = 'pokedex-card' + (isCaptured ? '' : ' locked');
 
                 if (isCaptured) {
-                    // 已捕捉：显示完整信息
+                    // 已捕捉：显示完整信息（使用懒加载）
                     card.innerHTML = `
                         <button class="pokedex-sound-btn" onclick="speakPokemonName(${pokemon.id})">🔊</button>
-                        <img src="${pokemon.image}" alt="${pokemon.name}">
+                        <img src="${pokemon.image}" loading="lazy" alt="${pokemon.name}">
                         <div class="pokemon-info">
                             <strong>${pokemon.name}</strong>
                             <br>
@@ -1521,9 +1525,9 @@
                         </div>
                     `;
                 } else {
-                    // 未捕捉：显示问号
+                    // 未捕捉：显示问号（使用懒加载）
                     card.innerHTML = `
-                        <img src="${pokemon.image}" alt="未知宝可梦">
+                        <img src="${pokemon.image}" loading="lazy" alt="未知宝可梦">
                         <div class="pokemon-info">
                             <strong>???</strong>
                             <br>
