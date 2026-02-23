@@ -321,6 +321,18 @@
             75% { transform: rotate(15deg); }
         }
 
+        /* 连线模式选中状态 */
+        .pokeball-option.selected {
+            border: 5px solid #FFD700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+            animation: pulse-glow 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
+            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 1); }
+        }
+
         /* 图鉴界面 */
         .pokedex-screen {
             display: none;
@@ -792,6 +804,15 @@
             <h2>⚙️ 设置</h2>
 
             <div class="settings-section">
+                <h3>🎮 游戏模式</h3>
+                <p style="font-size: 22px; margin-bottom: 20px;">选择答题方式</p>
+                <div class="speed-controls">
+                    <button class="speed-btn" id="modeSelectBtn" onclick="setGameMode('select')">点击选择</button>
+                    <button class="speed-btn" id="modeConnectBtn" onclick="setGameMode('connect')">连线拼音</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
                 <h3>🔊 语音速度</h3>
                 <p style="font-size: 22px; margin-bottom: 20px;">选择读题速度</p>
                 <div class="speed-controls">
@@ -831,6 +852,8 @@
         let pokedexFilter = 'captured'; // 图鉴筛选模式：'captured' 或 'all'
         let speechSpeed = 1.0; // 语音速度：0.6-1.4
         let errorCount = 0; // 当前遭遇的错误次数
+        let gameMode = localStorage.getItem('gameMode') || 'select'; // 游戏模式：'select' 或 'connect'
+        let connectSelection = { first: null, second: null }; // 连线模式的选择状态
 
         // 语音合成系统
         const synth = window.speechSynthesis;
@@ -866,6 +889,26 @@
                 utterance.voice = getChineseVoice();
                 synth.speak(utterance);
             }
+        }
+
+        // 设置游戏模式
+        function setGameMode(mode) {
+            gameMode = mode;
+
+            // 更新按钮状态
+            document.getElementById('modeSelectBtn').classList.remove('active');
+            document.getElementById('modeConnectBtn').classList.remove('active');
+
+            if (mode === 'select') {
+                document.getElementById('modeSelectBtn').classList.add('active');
+                speak('切换到点击选择模式');
+            } else {
+                document.getElementById('modeConnectBtn').classList.add('active');
+                speak('切换到连线拼音模式');
+            }
+
+            // 保存到localStorage
+            localStorage.setItem('gameMode', mode);
         }
 
         // 设置语音速度
@@ -955,6 +998,103 @@
             return speech;
         }
 
+        // 生成干扰项（连线模式）
+        function generateDistractors(correctInitial, correctFinal, count) {
+            const distractors = [];
+            const allInitials = ['b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'zh', 'ch', 'sh', 'r', 'z', 'c', 's', 'y', 'w'];
+            const allFinals = ['a', 'o', 'e', 'i', 'u', 'ü', 'ai', 'ei', 'ui', 'ao', 'ou', 'iu', 'ie', 'üe', 'er', 'an', 'en', 'in', 'un', 'ün', 'ang', 'eng', 'ing', 'ong'];
+
+            // 过滤掉正确答案
+            const availableInitials = allInitials.filter(i => i !== correctInitial);
+            const availableFinals = allFinals.filter(f => f !== correctFinal.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
+
+            // 随机选择干扰项
+            while (distractors.length < count) {
+                if (Math.random() < 0.5 && availableInitials.length > 0) {
+                    // 选择一个声母作为干扰项
+                    const randomIndex = Math.floor(Math.random() * availableInitials.length);
+                    const distractor = availableInitials.splice(randomIndex, 1)[0];
+                    distractors.push({ value: distractor, type: 'distractor-initial' });
+                } else if (availableFinals.length > 0) {
+                    // 选择一个韵母作为干扰项
+                    const randomIndex = Math.floor(Math.random() * availableFinals.length);
+                    const distractor = availableFinals.splice(randomIndex, 1)[0];
+                    distractors.push({ value: distractor, type: 'distractor-final' });
+                }
+            }
+
+            return distractors;
+        }
+
+        // 处理连线模式的点击
+        function handleConnectClick(pokeball) {
+            const value = pokeball.getAttribute('data-value');
+            const type = pokeball.getAttribute('data-type');
+
+            if (!connectSelection.first) {
+                // 第一次点击
+                connectSelection.first = { value, type, element: pokeball };
+                pokeball.classList.add('selected');
+                speak(value);
+            } else if (connectSelection.first.element === pokeball) {
+                // 点击同一个，取消选择
+                pokeball.classList.remove('selected');
+                connectSelection.first = null;
+            } else {
+                // 第二次点击，尝试连线
+                connectSelection.second = { value, type, element: pokeball };
+                pokeball.classList.add('selected');
+
+                // 检查连线是否正确
+                setTimeout(() => {
+                    checkConnection();
+                }, 300);
+            }
+        }
+
+        // 检查连线是否正确
+        function checkConnection() {
+            const { first, second } = connectSelection;
+            if (!first || !second) return;
+
+            // 获取正确答案
+            const charIndex = currentChallenge ? currentChallenge.charIndex : 0;
+            const correctPinyin = currentPokemon.pinyin[charIndex];
+            const { initial: correctInitial, final: correctFinal } = splitPinyin(correctPinyin);
+
+            // 判断是否正确（顺序无关）
+            const isCorrect = (
+                (first.type === 'initial' && first.value === correctInitial && second.type === 'final' && second.value === correctFinal) ||
+                (first.type === 'final' && first.value === correctFinal && second.type === 'initial' && second.value === correctInitial)
+            );
+
+            if (isCorrect) {
+                // 连线正确
+                checkAnswer('correct-connection');
+            } else {
+                // 连线错误
+                errorCount++;
+                speak('不对');
+
+                // 移除选中状态
+                first.element.classList.remove('selected');
+                second.element.classList.remove('selected');
+
+                // 重置选择
+                connectSelection = { first: null, second: null };
+
+                // 检查是否达到错误上限
+                if (errorCount >= 2) {
+                    setTimeout(() => {
+                        speak(`正确答案是${correctPinyin}，宝可梦逃走了`);
+                        setTimeout(() => {
+                            closeFeedback();
+                        }, 2500);
+                    }, 1200);
+                }
+            }
+        }
+
         // 检查拼音组合是否有效（完整版）
         function isValidPinyin(initial, final) {
             // 零声母的情况
@@ -1037,6 +1177,13 @@
         function init() {
             renderPokedex();
 
+            // 加载保存的游戏模式
+            if (gameMode === 'connect') {
+                document.getElementById('modeConnectBtn').classList.add('active');
+            } else {
+                document.getElementById('modeSelectBtn').classList.add('active');
+            }
+
             // 加载保存的语速设置
             const savedSpeed = localStorage.getItem('speechSpeed');
             if (savedSpeed) {
@@ -1102,8 +1249,12 @@
 
             // 播放语音提示
             setTimeout(() => {
-                const targetChar = nameChars[charIndex];
-                speak(`${currentPokemon.name}的${targetChar}字怎么拼？`);
+                if (gameMode === 'connect') {
+                    speak(`请连线拼出${currentPokemon.name}的拼音`);
+                } else {
+                    const targetChar = nameChars[charIndex];
+                    speak(`${currentPokemon.name}的${targetChar}字怎么拼？`);
+                }
             }, 500);
         }
 
@@ -1111,30 +1262,136 @@
         function generateQuestion() {
             const charIndex = currentChallenge.charIndex;
             const pinyin = currentPokemon.pinyin[charIndex];
-            const target = currentChallenge.target;
-
-            // 生成填空题
-            let blankPinyin = pinyin.replace(new RegExp(target, 'i'), '_'.repeat(target.length));
-            document.getElementById('pinyinBlank').textContent = blankPinyin;
-
-            // 生成选项（精灵球）
             const optionsContainer = document.getElementById('optionsContainer');
             optionsContainer.innerHTML = '';
 
-            // 打乱选项顺序
-            const shuffledOptions = [...currentChallenge.options].sort(() => Math.random() - 0.5);
+            if (gameMode === 'select') {
+                // 点击选择模式：原有逻辑
+                const target = currentChallenge.target;
 
-            shuffledOptions.forEach(option => {
-                const pokeball = document.createElement('div');
-                pokeball.className = 'pokeball-option';
-                pokeball.innerHTML = `<span>${option}</span>`;
-                pokeball.onclick = () => checkAnswer(option);
-                optionsContainer.appendChild(pokeball);
+                // 生成填空题
+                let blankPinyin = pinyin.replace(new RegExp(target, 'i'), '_'.repeat(target.length));
+                document.getElementById('pinyinBlank').textContent = blankPinyin;
+
+                // 打乱选项顺序
+                const shuffledOptions = [...currentChallenge.options].sort(() => Math.random() - 0.5);
+
+                shuffledOptions.forEach(option => {
+                    const pokeball = document.createElement('div');
+                    pokeball.className = 'pokeball-option';
+                    pokeball.innerHTML = `<span>${option}</span>`;
+                    pokeball.onclick = () => checkAnswer(option);
+                    optionsContainer.appendChild(pokeball);
+                });
+            } else {
+                // 连线拼音模式：显示5个精灵球（声母+韵母）
+                document.getElementById('pinyinBlank').textContent = '请连线拼出拼音';
+
+                // 拆分当前字的拼音
+                const { initial, final } = splitPinyin(pinyin);
+
+                // 生成5个选项：正确的声母、正确的韵母、3个干扰项
+                const correctOptions = [];
+                if (initial) correctOptions.push({ value: initial, type: 'initial' });
+                correctOptions.push({ value: final, type: 'final' });
+
+                // 生成干扰项
+                const distractors = generateDistractors(initial, final, 5 - correctOptions.length);
+
+                // 合并并打乱
+                const allOptions = [...correctOptions, ...distractors].sort(() => Math.random() - 0.5);
+
+                allOptions.forEach((option, index) => {
+                    const pokeball = document.createElement('div');
+                    pokeball.className = 'pokeball-option connect-mode';
+                    pokeball.setAttribute('data-value', option.value);
+                    pokeball.setAttribute('data-type', option.type);
+                    pokeball.setAttribute('data-index', index);
+                    pokeball.innerHTML = `<span>${option.value}</span>`;
+                    pokeball.onclick = () => handleConnectClick(pokeball);
+                    optionsContainer.appendChild(pokeball);
+                });
+            }
+        }
+
+        // 处理答对的情况
+        function handleCorrectAnswer() {
+            // 禁用所有按钮（答对了）
+            document.querySelectorAll('.pokeball-option').forEach(el => {
+                el.style.pointerEvents = 'none';
             });
+
+            // 获取拼音和字信息
+            const charIndex = currentChallenge ? currentChallenge.charIndex : 0;
+            const fullPinyin = currentPokemon.pinyin[charIndex];
+            const targetChar = currentPokemon.name.split('')[charIndex];
+
+            // 立即显示完整的正确拼音
+            document.getElementById('pinyinBlank').textContent = fullPinyin;
+
+            // 使用标准拼音拼读方式
+            const pinyinText = fullPinyin;
+            let speechText = `${targetChar}字，${pinyinText}`;
+            speak(speechText);
+
+            // 正确答案 - 延迟显示，等语音播完
+            setTimeout(() => {
+                document.querySelector('.pokemon-display').classList.remove('shadow');
+
+                // 保存捕获记录
+                const isNewCapture = !capturedPokemon.includes(currentPokemon.id);
+                if (isNewCapture) {
+                    capturedPokemon.push(currentPokemon.id);
+                    saveProgress();
+                }
+
+                // 触发庆祝特效
+                createCelebration();
+
+                // 显示成功反馈（带图鉴信息）
+                setTimeout(() => {
+                    // 使用拼读方式念完整的宝可梦名称（声母教学音+韵母教学音+字）
+                    const nameChars = currentPokemon.name.split('');
+                    let fullSpeech = '';
+
+                    // 为每个字拼读，并在每个字之间添加停顿
+                    nameChars.forEach((char, idx) => {
+                        const pinyin = currentPokemon.pinyin[idx];
+                        fullSpeech += speakPinyinWithTeaching(pinyin, char);
+
+                        // 在每个字后面添加停顿标记（除了最后一个字）
+                        if (idx < nameChars.length - 1) {
+                            fullSpeech += '，，'; // 双逗号增加停顿时间
+                        }
+                    });
+
+                    // 最后再念一遍完整名字
+                    fullSpeech += '。' + currentPokemon.name;
+
+                    speak(fullSpeech);
+
+                    // 根据名字字数动态调整延迟时间
+                    const delayTime = 2000 + (nameChars.length * 800);
+                    setTimeout(() => {
+                        speak('捕获成功');
+                        showSuccessFeedback(isNewCapture);
+                    }, delayTime);
+                }, 1500);
+            }, 1500);
+
+            // 重置连线选择状态
+            connectSelection = { first: null, second: null };
         }
 
         // 检查答案
         function checkAnswer(selectedOption) {
+            // 连线模式的特殊处理
+            if (selectedOption === 'correct-connection') {
+                // 连线正确，直接进入成功流程
+                handleCorrectAnswer();
+                return;
+            }
+
             const correctAnswer = currentChallenge.target;
             const isCorrect = selectedOption === correctAnswer;
 
@@ -1144,67 +1401,7 @@
             const targetChar = currentPokemon.name.split('')[charIndex];
 
             if (isCorrect) {
-                // 禁用所有按钮（答对了）
-                document.querySelectorAll('.pokeball-option').forEach(el => {
-                    el.style.pointerEvents = 'none';
-                });
-
-                // 立即显示完整的正确拼音
-                document.getElementById('pinyinBlank').textContent = fullPinyin;
-
-                // 使用标准拼音拼读方式（根据NotebookLM教学建议）
-                const pinyinText = fullPinyin;
-
-                // 构建拼读语音：用拼音字母本身来读
-                // 浏览器的中文语音引擎会正确读出拼音
-                let speechText = `${targetChar}字，${pinyinText}`;
-
-                speak(speechText);
-
-                // 正确答案 - 延迟显示，等语音播完
-                setTimeout(() => {
-                    document.querySelector('.pokemon-display').classList.remove('shadow');
-
-                    // 保存捕获记录
-                    const isNewCapture = !capturedPokemon.includes(currentPokemon.id);
-                    if (isNewCapture) {
-                        capturedPokemon.push(currentPokemon.id);
-                        saveProgress();
-                    }
-
-                    // 触发庆祝特效
-                    createCelebration();
-
-                    // 显示成功反馈（带图鉴信息）
-                    setTimeout(() => {
-                        // 使用拼读方式念完整的宝可梦名称（声母教学音+韵母教学音+字）
-                        const nameChars = currentPokemon.name.split('');
-                        let fullSpeech = '';
-
-                        // 为每个字拼读，并在每个字之间添加停顿
-                        nameChars.forEach((char, idx) => {
-                            const pinyin = currentPokemon.pinyin[idx];
-                            fullSpeech += speakPinyinWithTeaching(pinyin, char);
-
-                            // 在每个字后面添加停顿标记（除了最后一个字）
-                            if (idx < nameChars.length - 1) {
-                                fullSpeech += '，，'; // 双逗号增加停顿时间
-                            }
-                        });
-
-                        // 最后再念一遍完整名字
-                        fullSpeech += '。' + currentPokemon.name;
-
-                        speak(fullSpeech);
-
-                        // 根据名字字数动态调整延迟时间
-                        const delayTime = 2000 + (nameChars.length * 800);
-                        setTimeout(() => {
-                            speak('捕获成功');
-                            showSuccessFeedback(isNewCapture);
-                        }, delayTime);
-                    }, 1500);
-                }, 1500);
+                handleCorrectAnswer();
             } else {
                 // 错误答案 - 增加错误计数
                 errorCount++;
