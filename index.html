@@ -263,18 +263,21 @@
         /* 连线模式的左右分组 */
         .connect-group {
             display: flex;
-            flex-direction: column;
-            gap: 20px;
-            padding: 15px;
+            flex-direction: row;
+            gap: 15px;
+            padding: 20px;
             border-radius: 20px;
         }
 
         .connect-group.left-group {
             background: linear-gradient(135deg, rgba(255, 182, 193, 0.3) 0%, rgba(255, 192, 203, 0.2) 100%);
+            border-right: 3px dashed rgba(255, 107, 157, 0.4);
+            padding-right: 25px;
         }
 
         .connect-group.right-group {
             background: linear-gradient(135deg, rgba(135, 206, 250, 0.3) 0%, rgba(173, 216, 230, 0.2) 100%);
+            padding-left: 25px;
         }
 
         .pokeball-option {
