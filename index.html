@@ -260,6 +260,23 @@
             margin-top: 10px;
         }
 
+        /* 连线模式的左右分组 */
+        .connect-group {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 15px;
+            border-radius: 20px;
+        }
+
+        .connect-group.left-group {
+            background: linear-gradient(135deg, rgba(255, 182, 193, 0.3) 0%, rgba(255, 192, 203, 0.2) 100%);
+        }
+
+        .connect-group.right-group {
+            background: linear-gradient(135deg, rgba(135, 206, 250, 0.3) 0%, rgba(173, 216, 230, 0.2) 100%);
+        }
+
         .pokeball-option {
             width: 110px;
             height: 110px;
@@ -999,7 +1016,7 @@
         }
 
         // 生成干扰项（连线模式）
-        function generateDistractors(correctInitial, correctFinal, count) {
+        function generateDistractors(correctInitial, correctFinal, initialCount, finalCount) {
             const distractors = [];
             const allInitials = ['b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'zh', 'ch', 'sh', 'r', 'z', 'c', 's', 'y', 'w'];
             const allFinals = ['a', 'o', 'e', 'i', 'u', 'ü', 'ai', 'ei', 'ui', 'ao', 'ou', 'iu', 'ie', 'üe', 'er', 'an', 'en', 'in', 'un', 'ün', 'ang', 'eng', 'ing', 'ong'];
@@ -1008,19 +1025,18 @@
             const availableInitials = allInitials.filter(i => i !== correctInitial);
             const availableFinals = allFinals.filter(f => f !== correctFinal.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
 
-            // 随机选择干扰项
-            while (distractors.length < count) {
-                if (Math.random() < 0.5 && availableInitials.length > 0) {
-                    // 选择一个声母作为干扰项
-                    const randomIndex = Math.floor(Math.random() * availableInitials.length);
-                    const distractor = availableInitials.splice(randomIndex, 1)[0];
-                    distractors.push({ value: distractor, type: 'distractor-initial' });
-                } else if (availableFinals.length > 0) {
-                    // 选择一个韵母作为干扰项
-                    const randomIndex = Math.floor(Math.random() * availableFinals.length);
-                    const distractor = availableFinals.splice(randomIndex, 1)[0];
-                    distractors.push({ value: distractor, type: 'distractor-final' });
-                }
+            // 生成声母干扰项
+            for (let i = 0; i < initialCount && availableInitials.length > 0; i++) {
+                const randomIndex = Math.floor(Math.random() * availableInitials.length);
+                const distractor = availableInitials.splice(randomIndex, 1)[0];
+                distractors.push({ value: distractor, type: 'distractor-initial' });
+            }
+
+            // 生成韵母干扰项
+            for (let i = 0; i < finalCount && availableFinals.length > 0; i++) {
+                const randomIndex = Math.floor(Math.random() * availableFinals.length);
+                const distractor = availableFinals.splice(randomIndex, 1)[0];
+                distractors.push({ value: distractor, type: 'distractor-final' });
             }
 
             return distractors;
@@ -1284,33 +1300,66 @@
                     optionsContainer.appendChild(pokeball);
                 });
             } else {
-                // 连线拼音模式：显示5个精灵球（声母+韵母）
+                // 连线拼音模式：左边3个声母，右边3个韵母
                 document.getElementById('pinyinBlank').textContent = '请连线拼出拼音';
 
                 // 拆分当前字的拼音
                 const { initial, final } = splitPinyin(pinyin);
 
-                // 生成5个选项：正确的声母、正确的韵母、3个干扰项
-                const correctOptions = [];
-                if (initial) correctOptions.push({ value: initial, type: 'initial' });
-                correctOptions.push({ value: final, type: 'final' });
+                // 生成左边3个声母选项（1个正确 + 2个干扰）
+                const leftOptions = [];
+                if (initial) {
+                    leftOptions.push({ value: initial, type: 'initial' });
+                    // 生成2个声母干扰项
+                    const initialDistractors = generateDistractors(initial, final, 2, 0);
+                    leftOptions.push(...initialDistractors);
+                } else {
+                    // 如果没有声母，生成3个声母干扰项
+                    const initialDistractors = generateDistractors('', final, 3, 0);
+                    leftOptions.push(...initialDistractors);
+                }
+                // 打乱左边选项
+                leftOptions.sort(() => Math.random() - 0.5);
 
-                // 生成干扰项
-                const distractors = generateDistractors(initial, final, 5 - correctOptions.length);
+                // 生成右边3个韵母选项（1个正确 + 2个干扰）
+                const rightOptions = [];
+                rightOptions.push({ value: final, type: 'final' });
+                // 生成2个韵母干扰项
+                const finalDistractors = generateDistractors(initial, final, 0, 2);
+                rightOptions.push(...finalDistractors);
+                // 打乱右边选项
+                rightOptions.sort(() => Math.random() - 0.5);
 
-                // 合并并打乱
-                const allOptions = [...correctOptions, ...distractors].sort(() => Math.random() - 0.5);
-
-                allOptions.forEach((option, index) => {
+                // 创建左边的声母组
+                const leftGroup = document.createElement('div');
+                leftGroup.className = 'connect-group left-group';
+                leftOptions.forEach((option, index) => {
                     const pokeball = document.createElement('div');
                     pokeball.className = 'pokeball-option connect-mode';
                     pokeball.setAttribute('data-value', option.value);
                     pokeball.setAttribute('data-type', option.type);
-                    pokeball.setAttribute('data-index', index);
+                    pokeball.setAttribute('data-index', 'left-' + index);
                     pokeball.innerHTML = `<span>${option.value}</span>`;
                     pokeball.onclick = () => handleConnectClick(pokeball);
-                    optionsContainer.appendChild(pokeball);
+                    leftGroup.appendChild(pokeball);
                 });
+
+                // 创建右边的韵母组
+                const rightGroup = document.createElement('div');
+                rightGroup.className = 'connect-group right-group';
+                rightOptions.forEach((option, index) => {
+                    const pokeball = document.createElement('div');
+                    pokeball.className = 'pokeball-option connect-mode';
+                    pokeball.setAttribute('data-value', option.value);
+                    pokeball.setAttribute('data-type', option.type);
+                    pokeball.setAttribute('data-index', 'right-' + index);
+                    pokeball.innerHTML = `<span>${option.value}</span>`;
+                    pokeball.onclick = () => handleConnectClick(pokeball);
+                    rightGroup.appendChild(pokeball);
+                });
+
+                optionsContainer.appendChild(leftGroup);
+                optionsContainer.appendChild(rightGroup);
             }
         }
 
